@@ -1,6 +1,9 @@
 # Duplicate Transaction Detector
 
 A modern Spring Boot web application to detect duplicate transactions within a configurable time window. Features a rich, interactive UI for testing and visualization.
+<br />
+<br />
+<img src="assets/dashboard-overview.png" alt="Dashboard" width="700"/>
 
 ## Features
 - **REST API** for transaction validation
@@ -28,10 +31,16 @@ A modern Spring Boot web application to detect duplicate transactions within a c
 - **Add a transaction:** Fill the form and click "Check Transaction"
 - **Generate random:** Click "Generate Random Transaction" for quick testing
 - **View timeline:** See colored dots for each transaction (green: not duplicate, red: duplicate, yellow: error)
+
 - **Filter:** Use dropdown and account filter to focus on specific transactions
+<img src="assets/filtered-transactions.png" alt="Filtered-Transactions" width="500"/>
+
 - **Export:** Download visible history as CSV
+<img src="assets/exported-csv.png" alt="CSV Export" width="500"/>
+
 - **Clear:** Remove all transactions and reset stats
 - **Details:** Click any row or timeline dot for full transaction info
+<img src="assets/transaction-modal.png" alt="Transaction Modal" width="500"/>
 
 ## API Endpoints
 - `POST /api/transactions/check` — Check if a transaction is a duplicate
@@ -44,5 +53,3 @@ A modern Spring Boot web application to detect duplicate transactions within a c
 - Bootstrap 5
 - JavaScript (ES6+)
 - [flatpickr](https://flatpickr.js.org/) for date-time picker
-
----
