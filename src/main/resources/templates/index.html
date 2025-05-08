@@ -45,9 +45,92 @@
         .filter-group {
             margin-bottom: 15px;
         }
+        .timeline-container {
+            width: 100%;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+        .timeline {
+            position: relative;
+            height: 100px;
+            margin: 20px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            white-space: nowrap;
+            min-width: 500px;
+            max-width: 2000px;
+        }
+        .timeline-event {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+        }
+        .timeline-event.duplicate {
+            background-color: #dc3545;
+        }
+        .timeline-event.not-duplicate {
+            background-color: #198754;
+        }
+        .timeline-event.error {
+            background-color: #ffc107;
+        }
+        .timeline-window {
+            position: absolute;
+            height: 100%;
+            background-color: rgba(13, 110, 253, 0.1);
+            border: 1px dashed #0d6efd;
+        }
+        .transaction-row {
+            cursor: pointer;
+        }
+        .transaction-row:hover {
+            background-color: #f8f9fa;
+        }
+        .transaction-history table { border-bottom: 2px solid #dee2e6; }
     </style>
 </head>
 <body>
+    <!-- Transaction Details Modal -->
+    <div class="modal fade" id="transactionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Transaction Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Transaction ID</label>
+                        <p id="modal-id" class="form-control-plaintext"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Account ID</label>
+                        <p id="modal-account" class="form-control-plaintext"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Amount</label>
+                        <p id="modal-amount" class="form-control-plaintext"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Transaction Time</label>
+                        <p id="modal-time" class="form-control-plaintext"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <p id="modal-status" class="form-control-plaintext"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Processed At</label>
+                        <p id="modal-processed" class="form-control-plaintext"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container mt-5">
         <h1 class="mb-4">Duplicate Transaction Detector</h1>
         
@@ -122,21 +205,32 @@
                         <!-- Filter Controls -->
                         <div class="filter-group">
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <select class="form-select" id="statusFilter">
                                         <option value="all">All Status</option>
                                         <option value="duplicate">Duplicates</option>
                                         <option value="not-duplicate">Not Duplicates</option>
                                     </select>
                                 </div>
-                                <div class="col-md-4">
-                                    <input type="text" class="form-control" id="accountFilter" placeholder="Filter by Account">
+                                <div class="col-md-3">
+                                    <input type="text" class="form-control" id="accountFilter" placeholder="Filter by Acc">
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <button class="btn btn-outline-secondary" id="exportCsv">Export CSV</button>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-danger" id="clearHistory">Clear History</button>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Timeline -->
+                        <div class="timeline-container">
+                            <div class="timeline" id="timeline">
+                                <div class="timeline-window" id="timelineWindow"></div>
+                            </div>
+                        </div>
+
                         <div class="transaction-history">
                             <table class="table">
                                 <thead>
@@ -146,7 +240,7 @@
                                         <th>Amount</th>
                                         <th>Time</th>
                                         <th>Status</th>
-                                        <th>Processed At</th>
+                                        <th>Processed</th>
                                     </tr>
                                 </thead>
                                 <tbody id="historyTable">
@@ -159,14 +253,23 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
+        // Initialize Bootstrap modal
+        const transactionModal = new bootstrap.Modal(document.getElementById('transactionModal'));
+
         // Statistics tracking
         let stats = {
             totalTransactions: 0,
             duplicates: 0,
             totalProcessingTime: 0
         };
+
+        // Timeline data
+        let timelineData = [];
+        const TIMELINE_WINDOW = 30; // 30 seconds window
+        let selectedTimelineIndex = null;
 
         // Update statistics display
         function updateStats() {
@@ -181,6 +284,85 @@
                     ? Math.round(stats.totalProcessingTime / stats.totalTransactions) + 'ms'
                     : '0ms';
         }
+
+        // Update timeline
+        function updateTimeline() {
+            const timeline = document.getElementById('timeline');
+            timeline.innerHTML = '<div class="timeline-window" id="timelineWindow"></div>';
+            
+            if (timelineData.length === 0) return;
+
+            // Find time range
+            const times = timelineData.map(d => d.timestamp);
+            const minTime = Math.min(...times);
+            const maxTime = Math.max(...times);
+            let timeRange = maxTime - minTime;
+            if (timeRange === 0) timeRange = 1; // Prevent division by zero
+
+            // Set timeline width (fixed scale for better visualization)
+            const pxPerSecond = 10;
+            const timelineWidth = Math.max(timeRange * pxPerSecond, 500);
+            timeline.style.width = timelineWidth + 'px';
+
+            // Add events
+            timelineData.forEach((data, index) => {
+                const event = document.createElement('div');
+                event.className = `timeline-event ${data.status}`;
+                const position = ((data.timestamp - minTime) / timeRange) * 100;
+                event.style.left = `${position}%`;
+                event.style.top = '50%';
+                event.title = `Transaction ${data.id} (${data.status})`;
+                event.onclick = () => {
+                    selectedTimelineIndex = index;
+                    updateTimeline();
+                    showTransactionDetails(index);
+                };
+                timeline.appendChild(event);
+            });
+
+            // Update window
+            const window = document.getElementById('timelineWindow');
+            let anchorIndex = selectedTimelineIndex !== null ? selectedTimelineIndex : 0;
+            if (timelineData.length > 0) {
+                const anchorEvent = timelineData[anchorIndex];
+                const windowStartTime = anchorEvent.timestamp - TIMELINE_WINDOW;
+                const windowEndTime = anchorEvent.timestamp;
+                const windowStart = Math.max(0, ((windowStartTime - minTime) / timeRange) * 100);
+                const windowEnd = ((windowEndTime - minTime) / timeRange) * 100;
+                window.style.left = `${windowStart}%`;
+                window.style.width = `${windowEnd - windowStart}%`;
+                window.style.display = 'block';
+                window.style.border = '2px dashed #0d6efd';
+            }
+        }
+
+        // Show transaction details in modal
+        function showTransactionDetails(index) {
+            const data = timelineData[index];
+            document.getElementById('modal-id').textContent = data.id;
+            document.getElementById('modal-account').textContent = data.accountId;
+            document.getElementById('modal-amount').textContent = `$${data.amount.toFixed(2)}`;
+            document.getElementById('modal-time').textContent = new Date(data.timestamp * 1000).toLocaleString();
+            document.getElementById('modal-status').textContent = data.status;
+            document.getElementById('modal-processed').textContent = new Date(data.processedAt).toLocaleString();
+            transactionModal.show();
+        }
+
+        // Clear history
+        document.getElementById('clearHistory').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear the transaction history?')) {
+                document.getElementById('historyTable').innerHTML = '';
+                timelineData = [];
+                selectedTimelineIndex = null;
+                updateTimeline();
+                stats = {
+                    totalTransactions: 0,
+                    duplicates: 0,
+                    totalProcessingTime: 0
+                };
+                updateStats();
+            }
+        });
 
         // Initialize datetime picker
         flatpickr("#timestamp", {
@@ -233,11 +415,11 @@
             const rows = document.getElementById('historyTable').getElementsByTagName('tr');
 
             for (let row of rows) {
-                const status = row.className;
+                const classList = row.classList;
                 const account = row.children[1].textContent.toLowerCase();
                 const showStatus = statusFilter === 'all' || 
-                    (statusFilter === 'duplicate' && status === 'duplicate') ||
-                    (statusFilter === 'not-duplicate' && status === 'not-duplicate');
+                    (statusFilter === 'duplicate' && classList.contains('duplicate')) ||
+                    (statusFilter === 'not-duplicate' && classList.contains('not-duplicate'));
                 const showAccount = account.includes(accountFilter);
                 row.style.display = showStatus && showAccount ? '' : 'none';
             }
@@ -309,7 +491,7 @@
                     
                     // Add to history table with error status
                     const row = document.createElement('tr');
-                    row.className = 'error';
+                    row.className = 'error transaction-row';
                     row.innerHTML = `
                         <td>${transaction.id}</td>
                         <td>${transaction.accountId}</td>
@@ -319,34 +501,49 @@
                         <td>${new Date(result.timestamp).toLocaleString()}</td>
                     `;
                     document.getElementById('historyTable').insertBefore(row, document.getElementById('historyTable').firstChild);
+
+                    // Add to timeline data
+                    timelineData.unshift({
+                        id: transaction.id,
+                        accountId: transaction.accountId,
+                        amount: transaction.amount,
+                        timestamp: transaction.timestamp,
+                        status: 'error',
+                        processedAt: result.timestamp
+                    });
                 } else {
                     // Handle success response
                     const row = document.createElement('tr');
-                    if (result.status === 'DUPLICATE_DETECTED') {
-                        row.className = 'duplicate';
-                    } else if (result.status === 'NOT_DUPLICATE') {
-                        row.className = 'not-duplicate';
-                    } else {
-                        row.className = 'error';
-                    }
-
-                    const processedAt = new Date(result.processedAt).toLocaleString();
-                    
+                    const status = result.status === 'DUPLICATE_DETECTED' ? 'duplicate' : 'not-duplicate';
+                    row.className = `${status} transaction-row`;
                     row.innerHTML = `
                         <td>${transaction.id}</td>
                         <td>${transaction.accountId}</td>
                         <td>$${transaction.amount.toFixed(2)}</td>
                         <td>${new Date(transaction.timestamp * 1000).toLocaleString()}</td>
                         <td>${result.message}</td>
-                        <td>${processedAt}</td>
+                        <td>${new Date(result.processedAt).toLocaleString()}</td>
                     `;
-                    
                     document.getElementById('historyTable').insertBefore(row, document.getElementById('historyTable').firstChild);
+
+                    // Add to timeline data
+                    timelineData.unshift({
+                        id: transaction.id,
+                        accountId: transaction.accountId,
+                        amount: transaction.amount,
+                        timestamp: transaction.timestamp,
+                        status: status,
+                        processedAt: result.processedAt
+                    });
                 }
+                
+                // Update timeline
+                updateTimeline();
                 
                 // Clear form
                 document.getElementById('transactionForm').reset();
                 
+                selectedTimelineIndex = 0;
             } catch (error) {
                 console.error('Error:', error);
                 const errorAlert = document.getElementById('errorAlert');
@@ -355,5 +552,7 @@
             }
         });
     </script>
+<br />
+<br />
 </body>
 </html> 
