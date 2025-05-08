@@ -39,7 +39,7 @@ A modern Spring Boot web application to detect duplicate transactions within a c
 <img src="assets/exported-csv.png" alt="CSV Export" width="500"/>
 
 - **Clear:** Remove all transactions and reset stats
-- **Details:** Click any row or timeline dot for full transaction info
+- **Details:** Click any timeline dot for full transaction info
 <img src="assets/transaction-modal.png" alt="Transaction Modal" width="500"/>
 
 ## API Endpoints
