@@ -46,5 +46,3 @@ A modern Spring Boot web application to detect duplicate transactions within a c
 - [flatpickr](https://flatpickr.js.org/) for date-time picker
 
 ---
-
-**Enjoy testing and visualizing duplicate detection!** 
