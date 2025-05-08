@@ -6,8 +6,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         .transaction-history {
-            max-height: 400px;
+            max-height: 180px;
             overflow-y: auto;
+            min-height: 0;
         }
         .duplicate {
             background-color: #ffe6e6;
@@ -47,8 +48,8 @@
         }
         .timeline-container {
             width: 100%;
-            overflow-x: auto;
             padding-bottom: 8px;
+            overflow-x: hidden;
         }
         .timeline {
             position: relative;
@@ -287,6 +288,7 @@
 
         // Update timeline
         function updateTimeline() {
+            const timelineContainer = document.querySelector('.timeline-container');
             const timeline = document.getElementById('timeline');
             timeline.innerHTML = '<div class="timeline-window" id="timelineWindow"></div>';
             
@@ -303,6 +305,13 @@
             const pxPerSecond = 10;
             const timelineWidth = Math.max(timeRange * pxPerSecond, 500);
             timeline.style.width = timelineWidth + 'px';
+
+            // Only allow horizontal scroll if more than 4 transactions
+            if (timelineData.length > 4) {
+                timelineContainer.style.overflowX = 'auto';
+            } else {
+                timelineContainer.style.overflowX = 'hidden';
+            }
 
             // Add events
             timelineData.forEach((data, index) => {
@@ -343,7 +352,7 @@
             document.getElementById('modal-account').textContent = data.accountId;
             document.getElementById('modal-amount').textContent = `$${data.amount.toFixed(2)}`;
             document.getElementById('modal-time').textContent = new Date(data.timestamp * 1000).toLocaleString();
-            document.getElementById('modal-status').textContent = data.status;
+            document.getElementById('modal-status').textContent = data.status === 'duplicate' ? 'Duplicate' : (data.status === 'not-duplicate' ? 'Not a Duplicate' : 'Error');
             document.getElementById('modal-processed').textContent = new Date(data.processedAt).toLocaleString();
             transactionModal.show();
         }
@@ -497,7 +506,7 @@
                         <td>${transaction.accountId}</td>
                         <td>$${transaction.amount.toFixed(2)}</td>
                         <td>${new Date(transaction.timestamp * 1000).toLocaleString()}</td>
-                        <td>${result.detail}</td>
+                        <td>Error</td>
                         <td>${new Date(result.timestamp).toLocaleString()}</td>
                     `;
                     document.getElementById('historyTable').insertBefore(row, document.getElementById('historyTable').firstChild);
@@ -521,7 +530,7 @@
                         <td>${transaction.accountId}</td>
                         <td>$${transaction.amount.toFixed(2)}</td>
                         <td>${new Date(transaction.timestamp * 1000).toLocaleString()}</td>
-                        <td>${result.message}</td>
+                        <td>${status === 'duplicate' ? 'Duplicate' : 'Not a Duplicate'}</td>
                         <td>${new Date(result.processedAt).toLocaleString()}</td>
                     `;
                     document.getElementById('historyTable').insertBefore(row, document.getElementById('historyTable').firstChild);
