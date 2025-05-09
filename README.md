@@ -2,7 +2,6 @@
 
 A modern Spring Boot web application to detect duplicate transactions within a configurable time window. Features a rich, interactive UI for testing and visualization.
 <br />
-<br />
 <img src="assets/dashboard-overview.png" alt="Dashboard" width="700"/>
 
 ## Features
