@@ -18,7 +18,7 @@ A modern Spring Boot web application to detect duplicate transactions within a c
   - Transaction details modal (click any row or timeline dot)
 - **Validation and error handling** with clear feedback
 - **Responsive design** (works on desktop and mobile)
-
+ 
 ## Setup
 1. Ensure you have **Java 17+** and **Maven** installed
 2. Clone the repository
